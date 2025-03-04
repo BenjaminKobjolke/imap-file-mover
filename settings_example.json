@@ -1,0 +1,44 @@
+{
+  "accounts": [
+    {
+      "name": "Work Email",
+      "server": "imap.example.com",
+      "username": "your.email@example.com",
+      "password": "your_password",
+      "port": 993,
+      "use_ssl": true,
+      "target_folder": "C:\\Users\\YourName\\Documents\\Invoices",
+      "imap_move_folder": "Processed"
+    },
+    {
+      "name": "Personal Email",
+      "server": "imap.gmail.com",
+      "username": "your.personal@gmail.com",
+      "password": "your_app_password",
+      "port": 993,
+      "use_ssl": true,
+      "target_folder": "C:\\Users\\YourName\\Documents\\Personal\\Invoices",
+      "imap_move_folder": "Archived"
+    }
+  ],
+  "filters": [
+    {
+      "sender": "@microsoft.com",
+      "subject": "Invoice",
+      "attachment_extension": "pdf"
+    },
+    {
+      "sender": "billing@example.com",
+      "subject": "Monthly Statement",
+      "attachment_extension": "pdf"
+    },
+    {
+      "sender": "no-reply@company.com",
+      "subject": "Your Receipt",
+      "attachment_extension": "pdf"
+    }
+  ],
+  "check_interval_minutes": 15,
+  "log_level": "INFO",
+  "log_retention_days": 7
+}
