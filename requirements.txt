@@ -1,2 +1,5 @@
-IMAPClient==2.3.1
+# Install the IMAP client library from GitHub
+git+https://github.com/BenjaminKobjolke/imap_client_python.git
+
+# Other dependencies (IMAPClient is included by the library)
 pathlib==1.0.1
