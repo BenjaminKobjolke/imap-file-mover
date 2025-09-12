@@ -92,7 +92,7 @@ A sample configuration file `settings_example.json` is provided as a template. T
 
 - **check_interval_minutes**: Time between email checks in minutes
 
-  - Set to 0 to check once and exit
+  - Set to 0 to check once and exit (single run mode)
   - Set to a positive number to run continuously with the specified interval
 
 - **log_level**: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
