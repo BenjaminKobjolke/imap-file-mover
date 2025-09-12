@@ -19,16 +19,8 @@
       "use_ssl": true,
       "target_folder": "C:\\Users\\YourName\\Documents\\Personal\\Invoices",
       "imap_move_folder": "Archived"
-    },
-    {
-      "name": "Obsidian",
-      "server": "w00b9f48.kasserver.com",
-      "username": "m0799101",
-      "password": "your_password",
-      "port": 993,
-      "use_ssl": true,
-      "imap_move_folder": "obsidian_done"
     }
+    
   ],
   "filters": [
     {
@@ -57,15 +49,14 @@
       "subject": "Your Decodo invoice", 
       "attachment_type": "body",
       "target_format": "md",
-      "target_folder": "E:\\[--Sync--]\\markdown"
+      "target_folder": "E:\\markdown"
     },
     {
-      "account": "Obsidian",
-      "sender": "b.kobjolke@xida.de",
+      "account": "Personal Email",
       "subject": "privat", 
       "attachment_type": "body",
       "target_format": "md",
-      "target_folder": "E:\\[--Sync--]\\Notes_Trading\\Email"
+      "target_folder": "E:\\Email"
     }
   ],
   "check_interval_minutes": 15,
