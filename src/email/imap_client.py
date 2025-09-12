@@ -2,7 +2,7 @@
 IMAP client for connecting to email servers and retrieving messages.
 This extends the base library's ImapClient to add file-moving specific functionality.
 """
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 import os
 import re
 from pathlib import Path
@@ -164,6 +164,68 @@ class ImapClient(BaseImapClient):
             timestamp_full = datetime.now().strftime("%Y%m%d_%H%M%S")
             return f"{safe_subject}_{timestamp_full}.{extension}"
     
+    def extract_inline_images(self, email_message: EmailMessage, target_folder: str) -> Dict[str, str]:
+        """
+        Extract inline/embedded images from email attachments and save them.
+        
+        Args:
+            email_message: The email message containing attachments
+            target_folder: Folder to save the markdown file (images go in _resources subfolder)
+            
+        Returns:
+            Dict[str, str]: Mapping of CID references to local filenames
+        """
+        cid_mapping = {}
+        
+        # Create _resources subfolder for images
+        resources_folder = os.path.join(target_folder, "_resources")
+        os.makedirs(resources_folder, exist_ok=True)
+        
+        for attachment in email_message.attachments:
+            # Check if this is an inline image (has content_id or is marked as inline)
+            if attachment.content_id or attachment.is_inline:
+                # Clean up content_id (remove < and > brackets)
+                content_id = attachment.content_id
+                if content_id:
+                    content_id = content_id.strip('<>')
+                    
+                # Generate filename
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                
+                # Try to get extension from filename or content type
+                if attachment.filename:
+                    ext = os.path.splitext(attachment.filename)[1]
+                else:
+                    # Guess extension from content type
+                    ext = '.png'  # Default
+                    if 'jpeg' in attachment.content_type.lower():
+                        ext = '.jpg'
+                    elif 'gif' in attachment.content_type.lower():
+                        ext = '.gif'
+                    elif 'png' in attachment.content_type.lower():
+                        ext = '.png'
+                
+                image_filename = f"Pasted image {timestamp}{ext}"
+                image_path = os.path.join(resources_folder, image_filename)
+                
+                try:
+                    # Save the image data
+                    with open(image_path, 'wb') as f:
+                        f.write(attachment.data)
+                    
+                    # Map both cid: and direct content_id references
+                    # Note: We just use the filename, Obsidian will find it in _resources
+                    if content_id:
+                        cid_mapping[f"cid:{content_id}"] = image_filename
+                        cid_mapping[content_id] = image_filename
+                    
+                    self.logger.debug(f"Extracted inline image to _resources: {image_filename} (CID: {content_id})")
+                    
+                except Exception as e:
+                    self.logger.error(f"Failed to save inline image: {e}")
+        
+        return cid_mapping
+    
     def process_body_attachment(self, email_message: EmailMessage, email_filter: EmailFilter) -> int:
         """
         Process email body as attachment by converting to specified format.
@@ -197,12 +259,26 @@ class ImapClient(BaseImapClient):
         
         self.logger.info(f"Processing body attachment: {filename}")
         
+        # Extract inline images if we're converting to markdown
+        cid_mapping = {}
+        if email_filter.target_format.lower() == "md":
+            cid_mapping = self.extract_inline_images(email_message, target_folder)
+            
+            # Replace CID references in HTML body with local filenames
+            for cid_ref, local_filename in cid_mapping.items():
+                # Replace in HTML body before conversion
+                body = body.replace(f'src="{cid_ref}"', f'src="{local_filename}"')
+                body = body.replace(f"src='{cid_ref}'", f"src='{local_filename}'")
+                body = body.replace(f'src={cid_ref}', f'src="{local_filename}"')
+        
         # For markdown, convert HTML directly. For PDF, only if body has HTML structure
         if email_filter.target_format.lower() == "md":
             # If body is plain text, wrap it in minimal HTML for markdown conversion
             if not body.strip().startswith('<'):
                 body = f"<html><body><pre>{body}</pre></body></html>"
-            success = self.html_converter.convert_content(body, output_path, "md")
+            
+            # Pass the CID mapping to the converter
+            success = self.html_converter.convert_content_with_cid(body, output_path, "md", cid_mapping=cid_mapping)
         else:
             # For PDF, only convert if it looks like HTML
             if body.strip().startswith('<'):
@@ -212,6 +288,8 @@ class ImapClient(BaseImapClient):
                 return 0
         
         if success:
+            if cid_mapping:
+                self.logger.info(f"Extracted and linked {len(cid_mapping)} inline images")
             self.custom_logger.important(f"Created {email_filter.target_format.upper()} from email body: {output_path}")
             return 1
         else:
