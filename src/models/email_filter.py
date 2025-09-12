@@ -13,6 +13,7 @@ class EmailFilter:
     sender: Optional[str] = None
     subject: Optional[str] = None
     attachment_extension: Optional[str] = None
+    url_to_attachment: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> 'EmailFilter':
@@ -28,7 +29,8 @@ class EmailFilter:
         return cls(
             sender=data.get('sender'),
             subject=data.get('subject'),
-            attachment_extension=data.get('attachment_extension')
+            attachment_extension=data.get('attachment_extension'),
+            url_to_attachment=data.get('url_to_attachment')
         )
     
     def matches_email(self, email_from: str, email_subject: str, logger: Any = None) -> bool:

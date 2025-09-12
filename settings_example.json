@@ -36,9 +36,15 @@
       "sender": "no-reply@company.com",
       "subject": "Your Receipt",
       "attachment_extension": "pdf"
+    },
+    {
+      "sender": "help@paddle.com",
+      "subject": "Your decodo invoice",
+      "url_to_attachment": "https://my.paddle.com/receipt/"
     }
   ],
   "check_interval_minutes": 15,
   "log_level": "INFO",
-  "log_retention_days": 7
+  "log_retention_days": 7,
+  "wkhtmltopdf_path": null
 }

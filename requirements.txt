@@ -3,3 +3,8 @@ git+https://github.com/BenjaminKobjolke/imap_client_python.git
 
 # Other dependencies (IMAPClient is included by the library)
 pathlib==1.0.1
+
+# HTML to PDF conversion
+pdfkit==1.0.0
+requests==2.31.0
+beautifulsoup4==4.12.2

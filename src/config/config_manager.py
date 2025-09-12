@@ -28,6 +28,7 @@ class ConfigManager:
         self.check_interval_minutes = 0
         self.log_level = "INFO"
         self.log_retention_days = 3  # Default to 3 days
+        self.wkhtmltopdf_path = None  # Optional path to wkhtmltopdf executable
         
     def load(self) -> bool:
         """
@@ -73,6 +74,7 @@ class ConfigManager:
             self.check_interval_minutes = self.config_data.get('check_interval_minutes', 0)
             self.log_level = self.config_data.get('log_level', 'INFO')
             self.log_retention_days = self.config_data.get('log_retention_days', 3)
+            self.wkhtmltopdf_path = self.config_data.get('wkhtmltopdf_path')
             
             return True
         except Exception as e:
@@ -123,3 +125,12 @@ class ConfigManager:
             int: Log retention days
         """
         return self.log_retention_days
+    
+    def get_wkhtmltopdf_path(self) -> Optional[str]:
+        """
+        Get the configured path to wkhtmltopdf executable.
+        
+        Returns:
+            Optional[str]: Path to wkhtmltopdf or None if not configured
+        """
+        return self.wkhtmltopdf_path

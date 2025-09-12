@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(if [ -f \"setup.py\" ])",
+      "Bash(else echo \"No setup.py found\")",
+      "Bash(fi)",
+      "Bash(if [ -f \"pyproject.toml\" ])",
+      "Bash(else echo \"No pyproject.toml found\")",
+      "Bash(python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

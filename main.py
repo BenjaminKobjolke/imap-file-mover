@@ -8,7 +8,7 @@ downloads their attachments to designated folders, and marks the emails as read.
 import time
 import sys
 import os
-from typing import List
+from typing import List, Optional
 
 from src.config.config_manager import ConfigManager
 from src.email.imap_client import ImapClient
@@ -17,7 +17,7 @@ from src.models.email_filter import EmailFilter
 from src.utils.logger import Logger
 
 
-def process_account(account: Account, filters: List[EmailFilter], logger: Logger) -> int:
+def process_account(account: Account, filters: List[EmailFilter], logger: Logger, wkhtmltopdf_path: Optional[str] = None) -> int:
     """
     Process a single email account.
     
@@ -25,13 +25,14 @@ def process_account(account: Account, filters: List[EmailFilter], logger: Logger
         account: The account to process
         filters: The filters to apply
         logger: The logger instance
+        wkhtmltopdf_path: Optional path to wkhtmltopdf executable
         
     Returns:
         int: Number of attachments processed
     """
     logger.info(f"Processing account: {account.name}")
     
-    client = ImapClient(account)
+    client = ImapClient(account, wkhtmltopdf_path=wkhtmltopdf_path)
     attachment_count = client.process_messages(filters)
     
     logger.info(f"Processed {attachment_count} attachments for account {account.name}")
@@ -84,7 +85,7 @@ def main():
             
             cycle_attachments = 0
             for account in accounts:
-                attachments = process_account(account, filters, logger)
+                attachments = process_account(account, filters, logger, config_manager.get_wkhtmltopdf_path())
                 cycle_attachments += attachments
                 
             total_attachments += cycle_attachments
