@@ -19,28 +19,53 @@
       "use_ssl": true,
       "target_folder": "C:\\Users\\YourName\\Documents\\Personal\\Invoices",
       "imap_move_folder": "Archived"
+    },
+    {
+      "name": "Obsidian",
+      "server": "w00b9f48.kasserver.com",
+      "username": "m0799101",
+      "password": "your_password",
+      "port": 993,
+      "use_ssl": true,
+      "imap_move_folder": "obsidian_done"
     }
   ],
   "filters": [
     {
       "sender": "@microsoft.com",
       "subject": "Invoice",
-      "attachment_extension": "pdf"
+      "attachment_type": "attachment",
+      "attachment_extension": "pdf",
+      "target_format": "pdf"
     },
     {
       "sender": "billing@example.com",
       "subject": "Monthly Statement",
-      "attachment_extension": "pdf"
-    },
-    {
-      "sender": "no-reply@company.com",
-      "subject": "Your Receipt",
-      "attachment_extension": "pdf"
+      "attachment_type": "attachment",
+      "attachment_extension": "pdf",
+      "target_format": "pdf"
     },
     {
       "sender": "help@paddle.com",
-      "subject": "Your decodo invoice",
-      "url_to_attachment": "https://my.paddle.com/receipt/"
+      "subject": "Your Decodo invoice",
+      "attachment_type": "url",
+      "url_prefix": "https://my.paddle.com/receipt/",
+      "target_format": "pdf"
+    },
+    {
+      "sender": "help@paddle.com",
+      "subject": "Your Decodo invoice", 
+      "attachment_type": "body",
+      "target_format": "md",
+      "target_folder": "E:\\[--Sync--]\\markdown"
+    },
+    {
+      "account": "Obsidian",
+      "sender": "b.kobjolke@xida.de",
+      "subject": "privat", 
+      "attachment_type": "body",
+      "target_format": "md",
+      "target_folder": "E:\\[--Sync--]\\Notes_Trading\\Email"
     }
   ],
   "check_interval_minutes": 15,

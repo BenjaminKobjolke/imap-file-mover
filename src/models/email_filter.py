@@ -13,7 +13,12 @@ class EmailFilter:
     sender: Optional[str] = None
     subject: Optional[str] = None
     attachment_extension: Optional[str] = None
-    url_to_attachment: Optional[str] = None
+    url_to_attachment: Optional[str] = None  # Deprecated - use attachment_type and url_prefix
+    attachment_type: str = "attachment"  # "attachment", "url", "body"
+    target_format: str = "pdf"  # "pdf", "md"
+    target_folder: Optional[str] = None  # Optional override for account target_folder
+    url_prefix: Optional[str] = None  # For attachment_type="url"
+    account: Optional[str] = None  # Optional account name filter
 
     @classmethod
     def from_dict(cls, data: dict) -> 'EmailFilter':
@@ -26,12 +31,53 @@ class EmailFilter:
         Returns:
             EmailFilter: New EmailFilter instance
         """
+        # Handle backward compatibility for url_to_attachment
+        url_to_attachment = data.get('url_to_attachment')
+        attachment_type = data.get('attachment_type', 'attachment')
+        url_prefix = data.get('url_prefix')
+        
+        # If url_to_attachment is specified but attachment_type isn't, migrate
+        if url_to_attachment and attachment_type == 'attachment':
+            attachment_type = 'url'
+            url_prefix = url_to_attachment
+        
         return cls(
             sender=data.get('sender'),
             subject=data.get('subject'),
             attachment_extension=data.get('attachment_extension'),
-            url_to_attachment=data.get('url_to_attachment')
+            url_to_attachment=url_to_attachment,
+            attachment_type=attachment_type,
+            target_format=data.get('target_format', 'pdf'),
+            target_folder=data.get('target_folder'),
+            url_prefix=url_prefix or url_to_attachment,
+            account=data.get('account')
         )
+    
+    def matches_account(self, account_name: str, logger: Any = None) -> bool:
+        """
+        Check if this filter applies to the given account.
+        
+        Args:
+            account_name: The name of the account
+            logger: Optional logger for debug information
+            
+        Returns:
+            bool: True if the filter applies to this account, False otherwise
+        """
+        if not self.account:
+            # If no account filter is set, apply to all accounts
+            if logger:
+                logger.debug("Filter has no account restriction, applies to all accounts")
+            return True
+        
+        if self.account == account_name:
+            if logger:
+                logger.debug(f"Filter account '{self.account}' matches account '{account_name}'")
+            return True
+        else:
+            if logger:
+                logger.debug(f"Filter account '{self.account}' does not match account '{account_name}'")
+            return False
     
     def matches_email(self, email_from: str, email_subject: str, logger: Any = None) -> bool:
         """
@@ -55,7 +101,7 @@ class EmailFilter:
                 logger.debug(f"Sender mismatch - Filter: '{self.sender}' not in '{email_from}'")
             return False
             
-        # Check subject match if filter has a subject criteria
+        # Check subject match if filter has a subject criteria (ignore if not set)
         if self.subject and self.subject not in email_subject:
             if logger:
                 logger.debug(f"Subject mismatch - Filter: '{self.subject}' not in '{email_subject}'")

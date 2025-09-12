@@ -1,5 +1,5 @@
 """
-HTML to PDF converter with redirect handling.
+HTML converter with redirect handling - supports PDF and Markdown output.
 """
 import re
 import os
@@ -7,14 +7,15 @@ import tempfile
 import requests
 import pdfkit
 from bs4 import BeautifulSoup
+from markdownify import markdownify as md
 from typing import Optional, Tuple
 from pathlib import Path
 from src.utils.logger import Logger
 
 
-class HtmlToPdfConverter:
+class HtmlConverter:
     """
-    Handles downloading HTML content and converting it to PDF.
+    Handles downloading HTML content and converting it to PDF or Markdown.
     """
     
     def __init__(self, logger: Optional[Logger] = None, wkhtmltopdf_path: Optional[str] = None):
@@ -198,13 +199,108 @@ class HtmlToPdfConverter:
             self.logger.error("Note: wkhtmltopdf must be installed and in PATH for PDF conversion")
             return False
     
-    def download_and_convert(self, url: str, output_path: str) -> bool:
+    def html_to_markdown(self, html_content: str, output_path: str) -> bool:
         """
-        Download HTML from URL (following redirects) and convert to PDF.
+        Convert HTML content to Markdown.
+        
+        Args:
+            html_content: HTML content to convert
+            output_path: Path where Markdown should be saved
+            
+        Returns:
+            bool: True if conversion successful, False otherwise
+        """
+        try:
+            # Create output directory if it doesn't exist
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # Clean HTML before conversion
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # Remove unwanted elements
+            for element in soup(['script', 'style', 'meta', 'link', 'head']):
+                element.decompose()
+            
+            # Remove inline style attributes from all elements
+            for element in soup.find_all(attrs={'style': True}):
+                del element['style']
+            
+            # Remove class attributes (often contain CSS class names)
+            for element in soup.find_all(attrs={'class': True}):
+                del element['class']
+            
+            # Remove other common HTML attributes that don't translate well to markdown
+            unwanted_attrs = ['id', 'data-.*', 'aria-.*', 'role', 'tabindex', 'dir', 'lang']
+            for attr_pattern in unwanted_attrs:
+                for element in soup.find_all():
+                    attrs_to_remove = []
+                    for attr in element.attrs:
+                        if re.match(attr_pattern, attr, re.IGNORECASE):
+                            attrs_to_remove.append(attr)
+                    for attr in attrs_to_remove:
+                        del element[attr]
+            
+            # Get cleaned HTML
+            cleaned_html = str(soup)
+            
+            # Convert HTML to Markdown with better options
+            markdown_content = md(
+                cleaned_html,
+                heading_style="ATX",  # Use # for headings instead of underlines
+                bullets="-"  # Use - for bullet points
+            )
+            
+            # Trim excessive whitespace from the converted markdown
+            markdown_content = markdown_content.strip()
+            
+            # Remove excessive empty lines (more than 2 consecutive newlines)
+            markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
+            
+            # Remove any remaining CSS-like content that might have leaked through
+            markdown_content = re.sub(r'{[^}]*}', '', markdown_content)  # Remove CSS rules
+            markdown_content = re.sub(r'@media[^{]*{[^}]*}', '', markdown_content)  # Remove media queries
+            markdown_content = re.sub(r'#[a-zA-Z_][a-zA-Z0-9_-]*\s*{[^}]*}', '', markdown_content)  # Remove ID selectors
+            
+            # Write to file
+            with open(output_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_content)
+            
+            self.logger.important(f"Successfully converted HTML to Markdown: {output_path}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to convert HTML to Markdown: {e}")
+            return False
+    
+    def convert_content(self, content: str, output_path: str, target_format: str = "pdf", url: str = None) -> bool:
+        """
+        Convert content to the specified format.
+        
+        Args:
+            content: Content to convert (HTML for URL/body, raw text for body)
+            output_path: Path where output should be saved
+            target_format: Target format ("pdf" or "md")
+            url: Optional URL for base path resolution (for PDF)
+            
+        Returns:
+            bool: True if conversion successful, False otherwise
+        """
+        if target_format.lower() == "md":
+            return self.html_to_markdown(content, output_path)
+        elif target_format.lower() == "pdf":
+            return self.html_to_pdf(content, output_path, url)
+        else:
+            self.logger.error(f"Unsupported target format: {target_format}")
+            return False
+    
+    def download_and_convert(self, url: str, output_path: str, target_format: str = "pdf") -> bool:
+        """
+        Download HTML from URL (following redirects) and convert to specified format.
         
         Args:
             url: URL to download
-            output_path: Path where PDF should be saved
+            output_path: Path where output should be saved
+            target_format: Target format ("pdf" or "md")
             
         Returns:
             bool: True if successful, False otherwise
@@ -213,8 +309,8 @@ class HtmlToPdfConverter:
             # Download HTML with redirect handling
             final_url, html_content = self.download_html_with_redirects(url)
             
-            # Convert to PDF
-            return self.html_to_pdf(html_content, output_path, final_url)
+            # Convert to target format
+            return self.convert_content(html_content, output_path, target_format, final_url)
             
         except Exception as e:
             self.logger.error(f"Failed to download and convert {url}: {e}")

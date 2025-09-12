@@ -5,8 +5,13 @@ A Python application that monitors IMAP email accounts, identifies unread emails
 ## Features
 
 - Connect to multiple IMAP email accounts
-- Filter emails based on sender, subject, and attachment extension
-- Extract URLs from email body and convert HTML to PDF
+- Filter emails based on sender, subject, and attachment criteria
+- Multiple attachment processing modes:
+  - **Regular attachments**: Download email attachments directly
+  - **URL extraction**: Extract URLs from email body and convert to PDF/Markdown
+  - **Body processing**: Convert email body content to PDF/Markdown
+- Support for PDF and Markdown output formats
+- Per-filter target folder override capability
 - Download matching attachments to configured target folders
 - Mark processed emails as read
 - Move processed emails to specified IMAP folders
@@ -17,6 +22,7 @@ A Python application that monitors IMAP email accounts, identifies unread emails
 - Python 3.6+
 - IMAPClient
 - wkhtmltopdf (for HTML to PDF conversion)
+- markdownify (for HTML to Markdown conversion)
 - Internet connection
 
 ## Installation
@@ -71,10 +77,18 @@ A sample configuration file `settings_example.json` is provided as a template. T
 
 - **filters**: List of filter criteria for matching emails
 
-  - **sender**: Partial match for email sender
-  - **subject**: Partial match for email subject
-  - **attachment_extension**: File extension to match for attachments (for regular attachments)
-  - **url_to_attachment**: URL prefix to match in email body (for URL-based attachments that will be converted to PDF)
+  - **account**: Restrict filter to specific account name (optional - if not set, applies to all accounts)
+  - **sender**: Partial match for email sender (optional - if not set, matches any sender)
+  - **subject**: Partial match for email subject (optional - if not set, matches any subject)
+  - **attachment_type**: Type of attachment processing ("attachment", "url", "body")
+    - **"attachment"**: Process regular email attachments (default)
+    - **"url"**: Extract URLs from email body and convert to files
+    - **"body"**: Convert email body content to files
+  - **target_format**: Output format ("pdf" or "md", default: "pdf")
+  - **target_folder**: Override target folder for this filter (optional)
+  - **attachment_extension**: File extension to match (for attachment_type="attachment")
+  - **url_prefix**: URL prefix to match in email body (for attachment_type="url")
+  - **url_to_attachment**: Deprecated - use attachment_type="url" and url_prefix instead
 
 - **check_interval_minutes**: Time between email checks in minutes
 
@@ -97,39 +111,91 @@ A sample configuration file `settings_example.json` is provided as a template. T
 1. Configure your settings in `settings.json`
 2. Run `run.bat` to start the application
 
-## URL-based Attachment Feature
+## Attachment Processing Modes
 
-The application supports extracting URLs from email bodies and converting them to PDF. This is useful for services that send invoices as web pages instead of PDF attachments.
+The application supports three different attachment processing modes:
 
-### Prerequisites:
+### 1. Regular Attachments (attachment_type: "attachment")
 
-- Install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html
-- Either add it to your PATH or configure the path in `settings.json`:
-  ```json
-  "wkhtmltopdf_path": "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
-  ```
+Process traditional email attachments directly.
 
-### How it works:
+```json
+{
+  "sender": "@microsoft.com",
+  "subject": "Invoice",
+  "attachment_type": "attachment",
+  "attachment_extension": "pdf",
+  "target_format": "pdf"
+}
+```
 
-1. When a filter includes `url_to_attachment`, the application searches the email body for URLs starting with that prefix
-2. If a matching URL is found, it downloads the HTML content
-3. The application follows meta refresh redirects (common in invoice systems)
-4. The final HTML page is converted to PDF and saved to the target folder
+### 2. URL Extraction (attachment_type: "url")
 
-### Example configuration:
+Extract URLs from email bodies and convert the web pages to files. Useful for services that send invoices as web links.
+
+**Prerequisites:**
+- Install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html (for PDF output)
+- Configure path in settings if needed: `"wkhtmltopdf_path": "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"`
+
+**How it works:**
+1. Searches email body for URLs matching the specified prefix
+2. Downloads the HTML content from the first matching URL
+3. Follows meta refresh redirects (common in invoice systems)
+4. Converts to PDF or Markdown format
 
 ```json
 {
   "sender": "help@paddle.com",
   "subject": "Your invoice",
-  "url_to_attachment": "https://my.paddle.com/receipt/"
+  "attachment_type": "url",
+  "url_prefix": "https://my.paddle.com/receipt/",
+  "target_format": "pdf"
 }
 ```
 
-This filter will:
-- Match emails from help@paddle.com with "Your invoice" in the subject
-- Find URLs in the email starting with "https://my.paddle.com/receipt/"
-- Download the HTML from that URL and convert it to PDF
+### 3. Body Processing (attachment_type: "body")
+
+Convert email body content directly to files. Useful for emails containing structured content.
+
+**Features:**
+- Generates filename with YYYYMMDD_ prefix based on email subject
+- Supports both PDF and Markdown output formats
+- Can override target folder per filter
+
+```json
+{
+  "sender": "help@paddle.com",
+  "subject": "Your Decodo invoice",
+  "attachment_type": "body",
+  "target_format": "md",
+  "target_folder": "E:\\[--Sync--]\\markdown"
+}
+```
+
+**Notes:**
+- For Markdown output: Converts HTML body to Markdown, plain text is wrapped in `<pre>` tags
+- For PDF output: Only processes HTML content (plain text emails are skipped for PDF)
+- PDF files have timestamp in filename, Markdown files use date prefix only
+
+## Account-Specific Filters
+
+You can restrict filters to specific accounts using the `account` field. This is useful when you have multiple email accounts and want different processing rules for each:
+
+```json
+{
+  "account": "Obsidian",
+  "sender": "b.kobjolke@xida.de",
+  "subject": "privat", 
+  "attachment_type": "body",
+  "target_format": "md",
+  "target_folder": "E:\\[--Sync--]\\Notes_Trading\\Email"
+}
+```
+
+**Key Features:**
+- **Account matching**: Filter only applies to the "Obsidian" account
+- **Optional fields**: Both `sender` and `subject` are optional - if not specified, they match any value
+- **Global filters**: Filters without the `account` field apply to all accounts
 
 ## License
 
