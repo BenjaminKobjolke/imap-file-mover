@@ -181,17 +181,22 @@ class ImapClient(BaseImapClient):
         resources_folder = os.path.join(target_folder, "_resources")
         os.makedirs(resources_folder, exist_ok=True)
         
-        for attachment in email_message.attachments:
+        for idx, attachment in enumerate(email_message.attachments):
             # Check if this is an inline image (has content_id or is marked as inline)
             if attachment.content_id or attachment.is_inline:
                 # Clean up content_id (remove < and > brackets)
                 content_id = attachment.content_id
                 if content_id:
                     content_id = content_id.strip('<>')
-                    
-                # Generate filename
-                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-                
+
+                # Generate unique filename with timestamp and index
+                import time
+                # Add a small delay to ensure unique timestamps
+                time.sleep(0.01)
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")[:-3]  # Include milliseconds
+                # Add index to ensure uniqueness
+                unique_suffix = f"{timestamp}_{idx:02d}"
+
                 # Try to get extension from filename or content type
                 if attachment.filename:
                     ext = os.path.splitext(attachment.filename)[1]
@@ -204,8 +209,8 @@ class ImapClient(BaseImapClient):
                         ext = '.gif'
                     elif 'png' in attachment.content_type.lower():
                         ext = '.png'
-                
-                image_filename = f"Pasted image {timestamp}{ext}"
+
+                image_filename = f"Pasted image {unique_suffix}{ext}"
                 image_path = os.path.join(resources_folder, image_filename)
                 
                 try:
