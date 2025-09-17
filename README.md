@@ -161,6 +161,9 @@ Convert email body content directly to files. Useful for emails containing struc
 - Generates filename with YYYYMMDD_ prefix based on email subject
 - Supports both PDF and Markdown output formats
 - Can override target folder per filter
+- **Automatic attachment handling**: Downloads and links all email attachments when converting to Markdown
+- **Inline image support**: Extracts and links embedded images in the email body
+- **Obsidian-compatible links**: Uses `[[filename]]` syntax for easy navigation
 
 ```json
 {
@@ -172,10 +175,41 @@ Convert email body content directly to files. Useful for emails containing struc
 }
 ```
 
+**Markdown Output Features:**
+- **Body conversion**: Converts HTML body to clean Markdown format
+- **Inline images**: Embedded images are saved to `_resources/` folder and linked as `![[image.png]]`
+- **Attachment downloads**: All email attachments are automatically downloaded to `_resources/` folder
+- **Attachment links**: Creates clickable links to attachments using `[[filename|display_name]]` syntax
+- **File information**: Shows attachment type, size, and original filename
+- **Conflict resolution**: Automatically handles duplicate filenames with timestamps
+
+**Sample Markdown Output:**
+```markdown
+# Email Body Content
+[Converted email content here]
+
+---
+
+## Email Attachments
+
+1. **[[invoice_202412.pdf|Invoice Document.pdf]]**
+   - Type: `application/pdf`
+   - Size: 125.3 KB
+   - Downloaded as: `invoice_202412.pdf`
+
+2. **[[contract_202412.docx|Contract Agreement.docx]]**
+   - Type: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+   - Size: 89.7 KB
+   - Downloaded as: `contract_202412.docx`
+
+*Note: All attachments have been downloaded to the `_resources` folder and are linked above.*
+```
+
 **Notes:**
 - For Markdown output: Converts HTML body to Markdown, plain text is wrapped in `<pre>` tags
 - For PDF output: Only processes HTML content (plain text emails are skipped for PDF)
 - PDF files have timestamp in filename, Markdown files use date prefix only
+- Attachment filenames are sanitized for filesystem compatibility while preserving original names for display
 
 ## Account-Specific Filters
 
