@@ -433,53 +433,96 @@ class HtmlConverter:
             self.logger.error(f"Failed to convert HTML to Markdown: {e}")
             return False
     
-    def convert_content_with_cid(self, content: str, output_path: str, target_format: str = "pdf", url: str = None, cid_mapping: Dict[str, str] = None) -> bool:
+    def generate_attachment_info_markdown(self, attachment_info_list: List[Dict[str, str]]) -> str:
+        """
+        Generate markdown section with information about downloaded email attachments.
+
+        Args:
+            attachment_info_list: List of attachment info dictionaries
+
+        Returns:
+            str: Markdown content with attachment information and links
+        """
+        if not attachment_info_list:
+            return ""
+
+        attachment_section = "\n\n---\n\n## Email Attachments\n\n"
+
+        for i, att_info in enumerate(attachment_info_list, 1):
+            filename = att_info['filename']
+            original_name = att_info['original_name']
+            safe_display_name = att_info.get('safe_display_name', original_name)
+            content_type = att_info['content_type']
+            size = att_info['size']
+
+            # Create Obsidian-style link to the downloaded file using sanitized display name
+            attachment_section += f"{i}. **[[{filename}|{safe_display_name}]]**\n"
+            attachment_section += f"   - Type: `{content_type}`\n"
+            attachment_section += f"   - Size: {size}\n"
+            if original_name != safe_display_name:
+                attachment_section += f"   - Original name: `{original_name}`\n"
+            attachment_section += f"   - Downloaded as: `{filename}`\n"
+            attachment_section += "\n"
+
+        attachment_section += "*Note: All attachments have been downloaded to the `_resources` folder and are linked above.*\n"
+
+        return attachment_section
+
+    def convert_content_with_cid(self, content: str, output_path: str, target_format: str = "pdf", url: str = None, cid_mapping: Dict[str, str] = None, attachment_info: List[Dict[str, str]] = None) -> bool:
         """
         Convert content to the specified format with CID image mapping support.
-        
+
         Args:
             content: Content to convert (HTML for URL/body, raw text for body)
             output_path: Path where output should be saved
             target_format: Target format ("pdf" or "md")
             url: Optional URL for base path resolution
             cid_mapping: Optional mapping of CID references to local filenames
-            
+            attachment_info: Optional list of attachment info dictionaries
+
         Returns:
             bool: True if conversion successful, False otherwise
         """
         if target_format.lower() == "md":
             # Convert to markdown first
             result = self.html_to_markdown(content, output_path, url)
-            
-            # If we have CID mappings, update the markdown file to use Obsidian-style links
-            if result and cid_mapping:
+
+            # If we have CID mappings or attachment info, update the markdown file
+            if result and (cid_mapping or attachment_info):
                 try:
                     with open(output_path, 'r', encoding='utf-8') as f:
                         markdown_content = f.read()
-                    
+
                     # Replace any remaining CID references or local filename references
-                    for cid_ref, local_filename in cid_mapping.items():
-                        # Replace markdown image syntax
-                        markdown_content = re.sub(
-                            r'!\[([^\]]*)\]\(' + re.escape(local_filename) + r'\)',
-                            f'![[{local_filename}]]',
-                            markdown_content
-                        )
-                        # Also handle any remaining CID references
-                        markdown_content = re.sub(
-                            r'!\[([^\]]*)\]\(' + re.escape(cid_ref) + r'\)',
-                            f'![[{local_filename}]]',
-                            markdown_content
-                        )
-                        # Handle plain CID references that might remain
-                        markdown_content = markdown_content.replace(cid_ref, local_filename)
-                    
+                    if cid_mapping:
+                        for cid_ref, local_filename in cid_mapping.items():
+                            # Replace markdown image syntax
+                            markdown_content = re.sub(
+                                r'!\[([^\]]*)\]\(' + re.escape(local_filename) + r'\)',
+                                f'![[{local_filename}]]',
+                                markdown_content
+                            )
+                            # Also handle any remaining CID references
+                            markdown_content = re.sub(
+                                r'!\[([^\]]*)\]\(' + re.escape(cid_ref) + r'\)',
+                                f'![[{local_filename}]]',
+                                markdown_content
+                            )
+                            # Handle plain CID references that might remain
+                            markdown_content = markdown_content.replace(cid_ref, local_filename)
+
+                    # Add attachment information if provided
+                    if attachment_info:
+                        attachment_section = self.generate_attachment_info_markdown(attachment_info)
+                        if attachment_section:
+                            markdown_content += attachment_section
+
                     with open(output_path, 'w', encoding='utf-8') as f:
                         f.write(markdown_content)
-                        
+
                 except Exception as e:
-                    self.logger.error(f"Failed to update CID references in markdown: {e}")
-            
+                    self.logger.error(f"Failed to update markdown with CID references and attachment info: {e}")
+
             return result
         elif target_format.lower() == "pdf":
             return self.html_to_pdf(content, output_path, url)

@@ -101,46 +101,46 @@ class ImapClient(BaseImapClient):
     def sanitize_filename(self, filename: str, max_length: int = 50) -> str:
         """
         Sanitize filename to be safe for filesystem use.
-        
+
         Args:
             filename: Raw filename to sanitize
             max_length: Maximum length for filename (excluding extension)
-            
+
         Returns:
             str: Sanitized filename
         """
         if not filename:
             return "untitled"
-        
+
+        # First, normalize all whitespace including newlines, tabs, etc. to single spaces
+        safe_name = re.sub(r'\s+', ' ', filename)
+
         # Remove or replace problematic characters
         # Windows forbidden characters: < > : " | ? * \ /
         # Also remove control characters and other problematic ones
-        safe_name = re.sub(r'[<>:"|?*\\/\x00-\x1f\x7f]', '', filename)
-        
-        # Replace multiple spaces with single space
-        safe_name = re.sub(r'\s+', ' ', safe_name)
-        
+        safe_name = re.sub(r'[<>:"|?*\\/\x00-\x1f\x7f]', '', safe_name)
+
         # Remove leading/trailing whitespace and periods (Windows issue)
         safe_name = safe_name.strip(' .')
-        
+
         # Ensure it's not a reserved Windows name
         reserved_names = {
-            'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 
-            'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 
+            'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4',
+            'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2',
             'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
         }
-        
+
         if safe_name.upper() in reserved_names:
             safe_name = f"{safe_name}_file"
-        
+
         # Truncate to max length
         if len(safe_name) > max_length:
             safe_name = safe_name[:max_length].strip(' .')
-        
+
         # If empty after sanitization, use default
         if not safe_name:
             safe_name = "untitled"
-        
+
         return safe_name
 
     def generate_filename(self, email_message: EmailMessage, email_filter: EmailFilter, extension: str) -> str:
@@ -167,20 +167,20 @@ class ImapClient(BaseImapClient):
     def extract_inline_images(self, email_message: EmailMessage, target_folder: str) -> Dict[str, str]:
         """
         Extract inline/embedded images from email attachments and save them.
-        
+
         Args:
             email_message: The email message containing attachments
             target_folder: Folder to save the markdown file (images go in _resources subfolder)
-            
+
         Returns:
             Dict[str, str]: Mapping of CID references to local filenames
         """
         cid_mapping = {}
-        
+
         # Create _resources subfolder for images
         resources_folder = os.path.join(target_folder, "_resources")
         os.makedirs(resources_folder, exist_ok=True)
-        
+
         for idx, attachment in enumerate(email_message.attachments):
             # Check if this is an inline image (has content_id or is marked as inline)
             if attachment.content_id or attachment.is_inline:
@@ -212,33 +212,100 @@ class ImapClient(BaseImapClient):
 
                 image_filename = f"Pasted image {unique_suffix}{ext}"
                 image_path = os.path.join(resources_folder, image_filename)
-                
+
                 try:
                     # Save the image data
                     with open(image_path, 'wb') as f:
                         f.write(attachment.data)
-                    
+
                     # Map both cid: and direct content_id references
                     # Note: We just use the filename, Obsidian will find it in _resources
                     if content_id:
                         cid_mapping[f"cid:{content_id}"] = image_filename
                         cid_mapping[content_id] = image_filename
-                    
+
                     self.logger.debug(f"Extracted inline image to _resources: {image_filename} (CID: {content_id})")
-                    
+
                 except Exception as e:
                     self.logger.error(f"Failed to save inline image: {e}")
-        
+
         return cid_mapping
+
+    def extract_regular_attachments(self, email_message: EmailMessage, target_folder: str) -> List[Dict[str, str]]:
+        """
+        Extract regular attachments (non-inline) from email and save them.
+
+        Args:
+            email_message: The email message containing attachments
+            target_folder: Folder to save the markdown file (attachments go in _resources subfolder)
+
+        Returns:
+            List[Dict[str, str]]: List of attachment info with filename, original_name, content_type, and size
+        """
+        attachment_info = []
+
+        # Create _resources subfolder for attachments
+        resources_folder = os.path.join(target_folder, "_resources")
+        os.makedirs(resources_folder, exist_ok=True)
+
+        for idx, attachment in enumerate(email_message.attachments):
+            # Skip inline images (already handled separately)
+            if attachment.content_id or attachment.is_inline:
+                continue
+
+            # Use original filename if available, otherwise generate one
+            original_filename = attachment.filename or f"attachment_{idx}"
+
+            # Sanitize both the filename for filesystem and for display
+            safe_filename = self.sanitize_filename(original_filename, 100)
+            safe_display_name = self.sanitize_filename(original_filename, 100)
+
+            # Ensure unique filename by adding timestamp if needed
+            attachment_path = os.path.join(resources_folder, safe_filename)
+            if os.path.exists(attachment_path):
+                # Add timestamp to make unique
+                name_part, ext_part = os.path.splitext(safe_filename)
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                safe_filename = f"{name_part}_{timestamp}{ext_part}"
+                attachment_path = os.path.join(resources_folder, safe_filename)
+
+            try:
+                # Save the attachment data
+                with open(attachment_path, 'wb') as f:
+                    f.write(attachment.data)
+
+                # Calculate file size
+                size_bytes = len(attachment.data)
+                size_kb = size_bytes / 1024
+                if size_kb < 1024:
+                    size_str = f"{size_kb:.1f} KB"
+                else:
+                    size_mb = size_kb / 1024
+                    size_str = f"{size_mb:.1f} MB"
+
+                attachment_info.append({
+                    'filename': safe_filename,
+                    'original_name': original_filename,
+                    'safe_display_name': safe_display_name,
+                    'content_type': attachment.content_type or 'unknown',
+                    'size': size_str
+                })
+
+                self.logger.debug(f"Extracted attachment to _resources: {safe_filename}")
+
+            except Exception as e:
+                self.logger.error(f"Failed to save attachment {original_filename}: {e}")
+
+        return attachment_info
     
     def process_body_attachment(self, email_message: EmailMessage, email_filter: EmailFilter) -> int:
         """
         Process email body as attachment by converting to specified format.
-        
+
         Args:
             email_message: The email message
             email_filter: The filter with body attachment criteria
-            
+
         Returns:
             int: Number of files created (0 or 1)
         """
@@ -246,44 +313,46 @@ class ImapClient(BaseImapClient):
         if not target_folder:
             self.logger.error("No target folder specified for body attachment")
             return 0
-        
+
         # Get email body (prefer HTML, fallback to plain text)
         body = email_message.get_body("text/html") or email_message.get_body("text/plain") or ""
-        
+
         # Trim whitespace from the body content
         body = body.strip()
-        
+
         if not body:
             self.logger.debug("No email body found")
             return 0
-        
+
         # Generate filename
         extension = "md" if email_filter.target_format.lower() == "md" else "pdf"
         filename = self.generate_filename(email_message, email_filter, extension)
         output_path = os.path.join(target_folder, filename)
-        
+
         self.logger.info(f"Processing body attachment: {filename}")
-        
-        # Extract inline images if we're converting to markdown
+
+        # Extract inline images and regular attachments if we're converting to markdown
         cid_mapping = {}
+        attachment_info = []
         if email_filter.target_format.lower() == "md":
             cid_mapping = self.extract_inline_images(email_message, target_folder)
-            
+            attachment_info = self.extract_regular_attachments(email_message, target_folder)
+
             # Replace CID references in HTML body with local filenames
             for cid_ref, local_filename in cid_mapping.items():
                 # Replace in HTML body before conversion
                 body = body.replace(f'src="{cid_ref}"', f'src="{local_filename}"')
                 body = body.replace(f"src='{cid_ref}'", f"src='{local_filename}'")
                 body = body.replace(f'src={cid_ref}', f'src="{local_filename}"')
-        
+
         # For markdown, convert HTML directly. For PDF, only if body has HTML structure
         if email_filter.target_format.lower() == "md":
             # If body is plain text, wrap it in minimal HTML for markdown conversion
             if not body.strip().startswith('<'):
                 body = f"<html><body><pre>{body}</pre></body></html>"
-            
-            # Pass the CID mapping to the converter
-            success = self.html_converter.convert_content_with_cid(body, output_path, "md", cid_mapping=cid_mapping)
+
+            # Pass the CID mapping and attachment info to the converter
+            success = self.html_converter.convert_content_with_cid(body, output_path, "md", cid_mapping=cid_mapping, attachment_info=attachment_info)
         else:
             # For PDF, only convert if it looks like HTML
             if body.strip().startswith('<'):
@@ -291,10 +360,12 @@ class ImapClient(BaseImapClient):
             else:
                 self.logger.debug("Body is plain text, not converting to PDF (use markdown format instead)")
                 return 0
-        
+
         if success:
             if cid_mapping:
                 self.logger.info(f"Extracted and linked {len(cid_mapping)} inline images")
+            if attachment_info:
+                self.logger.info(f"Downloaded and linked {len(attachment_info)} attachments")
             self.custom_logger.important(f"Created {email_filter.target_format.upper()} from email body: {output_path}")
             return 1
         else:
