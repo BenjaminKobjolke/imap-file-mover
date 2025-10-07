@@ -315,15 +315,16 @@ class HtmlConverter:
         
         return markdown_content
     
-    def html_to_markdown(self, html_content: str, output_path: str, base_url: str = None) -> bool:
+    def html_to_markdown(self, html_content: str, output_path: str, base_url: str = None, frontmatter: str = None) -> bool:
         """
         Convert HTML content to Markdown.
-        
+
         Args:
             html_content: HTML content to convert
             output_path: Path where Markdown should be saved
             base_url: Base URL for resolving relative image URLs
-            
+            frontmatter: Optional YAML frontmatter to prepend to the markdown
+
         Returns:
             bool: True if conversion successful, False otherwise
         """
@@ -421,7 +422,11 @@ class HtmlConverter:
             markdown_content = re.sub(r'{[^}]*}', '', markdown_content)  # Remove CSS rules
             markdown_content = re.sub(r'@media[^{]*{[^}]*}', '', markdown_content)  # Remove media queries
             markdown_content = re.sub(r'#[a-zA-Z_][a-zA-Z0-9_-]*\s*{[^}]*}', '', markdown_content)  # Remove ID selectors
-            
+
+            # Prepend frontmatter if provided
+            if frontmatter:
+                markdown_content = frontmatter + markdown_content
+
             # Write to file
             with open(output_path, 'w', encoding='utf-8') as f:
                 f.write(markdown_content)
@@ -468,7 +473,7 @@ class HtmlConverter:
 
         return attachment_section
 
-    def convert_content_with_cid(self, content: str, output_path: str, target_format: str = "pdf", url: str = None, cid_mapping: Dict[str, str] = None, attachment_info: List[Dict[str, str]] = None) -> bool:
+    def convert_content_with_cid(self, content: str, output_path: str, target_format: str = "pdf", url: str = None, cid_mapping: Dict[str, str] = None, attachment_info: List[Dict[str, str]] = None, frontmatter: str = None) -> bool:
         """
         Convert content to the specified format with CID image mapping support.
 
@@ -479,13 +484,14 @@ class HtmlConverter:
             url: Optional URL for base path resolution
             cid_mapping: Optional mapping of CID references to local filenames
             attachment_info: Optional list of attachment info dictionaries
+            frontmatter: Optional YAML frontmatter to prepend to the markdown
 
         Returns:
             bool: True if conversion successful, False otherwise
         """
         if target_format.lower() == "md":
             # Convert to markdown first
-            result = self.html_to_markdown(content, output_path, url)
+            result = self.html_to_markdown(content, output_path, url, frontmatter)
 
             # If we have CID mappings or attachment info, update the markdown file
             if result and (cid_mapping or attachment_info):

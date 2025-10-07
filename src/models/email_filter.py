@@ -1,8 +1,8 @@
 """
 Email filter model for matching emails based on criteria.
 """
-from dataclasses import dataclass
-from typing import Optional, Any
+from dataclasses import dataclass, field
+from typing import Optional, Any, Dict
 
 
 @dataclass
@@ -19,6 +19,7 @@ class EmailFilter:
     target_folder: Optional[str] = None  # Optional override for account target_folder
     url_prefix: Optional[str] = None  # For attachment_type="url"
     account: Optional[str] = None  # Optional account name filter
+    markdown_config: Optional[Dict[str, Any]] = field(default=None)  # Optional markdown configuration with properties
 
     @classmethod
     def from_dict(cls, data: dict) -> 'EmailFilter':
@@ -50,7 +51,8 @@ class EmailFilter:
             target_format=data.get('target_format', 'pdf'),
             target_folder=data.get('target_folder'),
             url_prefix=url_prefix or url_to_attachment,
-            account=data.get('account')
+            account=data.get('account'),
+            markdown_config=data.get('markdown')
         )
     
     def matches_account(self, account_name: str, logger: Any = None) -> bool:

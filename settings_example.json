@@ -53,10 +53,26 @@
     },
     {
       "account": "Personal Email",
-      "subject": "privat", 
+      "subject": "privat",
       "attachment_type": "body",
       "target_format": "md",
       "target_folder": "E:\\Email"
+    },
+    {
+      "account": "Personal Email",
+      "subject": "meeting",
+      "attachment_type": "body",
+      "target_format": "md",
+      "target_folder": "E:\\Notes",
+      "markdown": {
+        "properties": {
+          "Author": "[email_from]",
+          "Created at": "[email_datetime]",
+          "Last updated at": "[email_datetime]",
+          "Subject": "[email_subject]",
+          "tags": ["meeting", "email"]
+        }
+      }
     }
   ],
   "check_interval_minutes": 15,

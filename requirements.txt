@@ -11,3 +11,6 @@ beautifulsoup4==4.12.2
 
 # HTML to Markdown conversion
 markdownify==0.11.6
+
+# YAML for markdown frontmatter
+PyYAML==6.0.1

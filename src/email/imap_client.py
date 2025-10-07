@@ -17,6 +17,7 @@ from src.models.account import Account
 from src.models.email_filter import EmailFilter
 from src.utils.logger import Logger
 from src.utils.html_to_pdf import HtmlConverter
+from src.utils.markdown_frontmatter import FrontmatterGenerator
 
 
 class ImapClient(BaseImapClient):
@@ -351,8 +352,17 @@ class ImapClient(BaseImapClient):
             if not body.strip().startswith('<'):
                 body = f"<html><body><pre>{body}</pre></body></html>"
 
-            # Pass the CID mapping and attachment info to the converter
-            success = self.html_converter.convert_content_with_cid(body, output_path, "md", cid_mapping=cid_mapping, attachment_info=attachment_info)
+            # Generate frontmatter if markdown config is provided
+            frontmatter = None
+            if email_filter.markdown_config and 'properties' in email_filter.markdown_config:
+                email_data = FrontmatterGenerator.build_email_data(email_message)
+                frontmatter = FrontmatterGenerator.generate_frontmatter(
+                    email_filter.markdown_config['properties'],
+                    email_data
+                )
+
+            # Pass the CID mapping, attachment info, and frontmatter to the converter
+            success = self.html_converter.convert_content_with_cid(body, output_path, "md", cid_mapping=cid_mapping, attachment_info=attachment_info, frontmatter=frontmatter)
         else:
             # For PDF, only convert if it looks like HTML
             if body.strip().startswith('<'):
