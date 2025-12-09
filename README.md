@@ -87,6 +87,7 @@ A sample configuration file `settings_example.json` is provided as a template. T
   - **target_format**: Output format ("pdf" or "md", default: "pdf")
   - **target_folder**: Override target folder for this filter (optional)
   - **attachment_extension**: File extension to match (for attachment_type="attachment")
+  - **attachment_name**: Substring to match in attachment filename (optional, case-insensitive)
   - **url_prefix**: URL prefix to match in email body (for attachment_type="url")
   - **url_to_attachment**: Deprecated - use attachment_type="url" and url_prefix instead
 
@@ -128,6 +129,21 @@ Process traditional email attachments directly.
   "target_format": "pdf"
 }
 ```
+
+**Filtering by filename:**
+
+Use `attachment_name` to only save attachments whose filename contains a specific string (case-insensitive):
+
+```json
+{
+  "sender": "billing@example.com",
+  "subject": "Your Order",
+  "attachment_extension": "pdf",
+  "attachment_name": "invoice"
+}
+```
+
+This saves only PDF attachments with "invoice" in the filename, skipping other PDFs in the same email.
 
 ### 2. URL Extraction (attachment_type: "url")
 

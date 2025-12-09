@@ -32,6 +32,12 @@
     },
     {
       "sender": "billing@example.com",
+      "subject": "Your Order",
+      "attachment_extension": "pdf",
+      "attachment_name": "invoice"
+    },
+    {
+      "sender": "billing@example.com",
       "subject": "Monthly Statement",
       "attachment_type": "attachment",
       "attachment_extension": "pdf",

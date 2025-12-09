@@ -13,6 +13,7 @@ class EmailFilter:
     sender: Optional[str] = None
     subject: Optional[str] = None
     attachment_extension: Optional[str] = None
+    attachment_name: Optional[str] = None  # Optional substring filter for attachment filename
     url_to_attachment: Optional[str] = None  # Deprecated - use attachment_type and url_prefix
     attachment_type: str = "attachment"  # "attachment", "url", "body"
     target_format: str = "pdf"  # "pdf", "md"
@@ -46,6 +47,7 @@ class EmailFilter:
             sender=data.get('sender'),
             subject=data.get('subject'),
             attachment_extension=data.get('attachment_extension'),
+            attachment_name=data.get('attachment_name'),
             url_to_attachment=url_to_attachment,
             attachment_type=attachment_type,
             target_format=data.get('target_format', 'pdf'),
@@ -116,30 +118,37 @@ class EmailFilter:
     
     def matches_attachment(self, filename: str, logger: Any = None) -> bool:
         """
-        Check if a filename matches this filter's attachment extension criteria.
-        
+        Check if a filename matches this filter's attachment criteria.
+
         Args:
             filename: The filename to check
             logger: Optional logger for debug information
-            
+
         Returns:
-            bool: True if the filename matches the extension criteria, False otherwise
+            bool: True if the filename matches the filter criteria, False otherwise
         """
         if logger:
             logger.debug(f"Checking attachment match - Filename: '{filename}'")
-            logger.debug(f"Filter criteria - Extension: '{self.attachment_extension}'")
-        
-        if not self.attachment_extension:
+            logger.debug(f"Filter criteria - Extension: '{self.attachment_extension}', Name: '{self.attachment_name}'")
+
+        # Check extension filter
+        if self.attachment_extension:
+            if not filename.lower().endswith(f'.{self.attachment_extension.lower()}'):
+                if logger:
+                    logger.debug(f"Attachment extension mismatch - Expected: '{self.attachment_extension}'")
+                return False
             if logger:
-                logger.debug("No attachment extension filter specified, matching all attachments")
-            return True
-        
-        match_result = filename.lower().endswith(f'.{self.attachment_extension.lower()}')
-        
-        if logger:
-            if match_result:
                 logger.debug(f"Attachment matches extension filter: '{self.attachment_extension}'")
-            else:
-                logger.debug(f"Attachment extension mismatch - Expected: '{self.attachment_extension}'")
-                
-        return match_result
+
+        # Check attachment_name filter (substring match, case-insensitive)
+        if self.attachment_name:
+            if self.attachment_name.lower() not in filename.lower():
+                if logger:
+                    logger.debug(f"Attachment name mismatch - '{self.attachment_name}' not in '{filename}'")
+                return False
+            if logger:
+                logger.debug(f"Attachment matches name filter: '{self.attachment_name}'")
+
+        if logger:
+            logger.debug("Attachment matches all filter criteria")
+        return True
