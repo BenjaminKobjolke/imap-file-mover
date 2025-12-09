@@ -6,7 +6,10 @@
       "Bash(fi)",
       "Bash(if [ -f \"pyproject.toml\" ])",
       "Bash(else echo \"No pyproject.toml found\")",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []

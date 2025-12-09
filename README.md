@@ -233,17 +233,17 @@ You can restrict filters to specific accounts using the `account` field. This is
 
 ```json
 {
-  "account": "Obsidian",
-  "sender": "b.kobjolke@xida.de",
-  "subject": "privat", 
+  "account": "Personal Email",
+  "sender": "newsletter@example.com",
+  "subject": "weekly report",
   "attachment_type": "body",
   "target_format": "md",
-  "target_folder": "E:\\[--Sync--]\\Notes_Trading\\Email"
+  "target_folder": "D:\\Documents\\Notes\\Email"
 }
 ```
 
 **Key Features:**
-- **Account matching**: Filter only applies to the "Obsidian" account
+- **Account matching**: Filter only applies to the "Personal Email" account
 - **Optional fields**: Both `sender` and `subject` are optional - if not specified, they match any value
 - **Global filters**: Filters without the `account` field apply to all accounts
 
