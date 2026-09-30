@@ -3,6 +3,7 @@ IMAP client for connecting to email servers and retrieving messages.
 This extends the base library's ImapClient to add file-moving specific functionality.
 """
 from typing import List, Optional, Tuple, Dict
+import logging
 import os
 import re
 from pathlib import Path
@@ -97,8 +98,13 @@ class ImapClient(BaseImapClient):
         """
         result = super().mark_as_read(message_id)
         if result:
-            self.custom_logger.important(f"Marked message {message_id} as read")
+            self._important_if_quiet(f"Marked message {message_id} as read")
         return result
+
+    def _important_if_quiet(self, message: str) -> None:
+        """Base lib already logs this at INFO; only repeat it when INFO is filtered out."""
+        if not self.custom_logger.logger.isEnabledFor(logging.INFO):
+            self.custom_logger.important(message)
     
     def move_to_folder(self, message_id: str, folder: str) -> bool:
         """
@@ -106,7 +112,7 @@ class ImapClient(BaseImapClient):
         """
         result = super().move_to_folder(message_id, folder)
         if result and folder:
-            self.custom_logger.important(f"Moved message {message_id} to folder '{folder}'")
+            self._important_if_quiet(f"Moved message {message_id} to folder '{folder}'")
         return result
     
     def extract_urls_from_body(self, body: str, url_prefix: str) -> List[str]:
@@ -553,7 +559,7 @@ class ImapClient(BaseImapClient):
                                     )
                                     if saved_path:
                                         processed_count += 1
-                                        self.custom_logger.important(f"Saved attachment {saved_path}")
+                                        self._important_if_quiet(f"Saved attachment {saved_path}")
                                 else:
                                     self.logger.debug(f"Attachment '{attachment.filename}' did not match filter #{i+1}")
                             
