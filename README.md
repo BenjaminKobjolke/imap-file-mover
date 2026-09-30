@@ -112,6 +112,8 @@ A sample configuration file `settings_example.json` is provided as a template. T
 1. Configure your settings in `settings.json`
 2. Run `run.bat` to start the application
 
+Checked message UIDs are stored in `checked_messages.db`, so unread emails that matched no filter are not downloaded again on the next cycle. Delete this file to re-check all unread emails (e.g. after adding a new filter).
+
 ## Attachment Processing Modes
 
 The application supports three different attachment processing modes:

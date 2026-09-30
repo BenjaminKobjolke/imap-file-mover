@@ -49,6 +49,8 @@ No automated test suite is currently configured. Manual testing involves:
 
 5. **Custom Logger** (`src/utils/logger.py`): Application-specific logger with `important()` method for highlighting key operations
 
+6. **Checked Store** (`src/utils/checked_store.py`): SQLite store (`checked_messages.db`, cwd-relative, gitignored) of UIDs already run through the filters, keyed by account, folder, UIDVALIDITY and UID. `ImapClient.get_messages()` overrides the base method to skip these UIDs *before* fetching bodies (the base lib downloads every message in full before the callback runs). Self-check: `python src\utils\checked_store.py`
+
 ### External Dependency
 
 The project depends on the `imap_client_python` library from GitHub:
@@ -75,8 +77,8 @@ The application uses `settings.json` (created from `settings_example.json` if no
 1. Load configuration from `settings.json`
 2. For each account:
    - Connect to IMAP server
-   - Fetch unread messages
-   - Apply filters to identify matching emails
+   - Search unread messages, drop UIDs already in `checked_messages.db`, fetch the rest
+   - Apply filters to identify matching emails; record each UID as checked (matched or not; not recorded if processing raises)
    - Download matching attachments to `target_folder`
    - Mark messages as read
    - Optionally move to `imap_move_folder`
