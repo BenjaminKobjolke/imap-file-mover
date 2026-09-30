@@ -18,6 +18,7 @@ from src.models.email_filter import EmailFilter
 from src.utils.logger import Logger
 from src.utils.html_to_pdf import HtmlConverter
 from src.utils.markdown_frontmatter import FrontmatterGenerator
+from src.utils.checked_store import CheckedStore
 
 
 class ImapClient(BaseImapClient):
@@ -40,9 +41,56 @@ class ImapClient(BaseImapClient):
         # Initialize the HTML converter
         self.html_converter = HtmlConverter(logger=self.custom_logger, wkhtmltopdf_path=wkhtmltopdf_path)
         
+        # Remembers UIDs already checked so unmatched unread mails are not refetched
+        self.checked_store = CheckedStore()
+        self._folder = None
+        self._uidvalidity = None
+
         # Initialize the base client with the custom logger
         super().__init__(account, logger=self.custom_logger)
-    
+
+    def get_messages(self, search_criteria: List[str] = None, folder: str = 'INBOX',
+                     limit: Optional[int] = None, include_attachments: bool = True) -> List[Tuple[str, EmailMessage]]:
+        """
+        Override of the base method that skips UIDs already recorded in the checked store,
+        so they are not downloaded again.
+        """
+        if not self.client:
+            self.logger.error("Not connected to IMAP server")
+            return []
+
+        if search_criteria is None:
+            search_criteria = ['UNSEEN']
+
+        try:
+            select_info = self.client.select_folder(folder)
+            self._folder = folder
+            self._uidvalidity = int(select_info[b'UIDVALIDITY'])
+
+            self.logger.info(f"Searching for messages with criteria: {search_criteria}")
+            message_ids = self.client.search(search_criteria)
+            new_ids = self.checked_store.filter_new(self.account.name, folder, self._uidvalidity, message_ids)
+            self.logger.info(f"Found {len(message_ids)} messages, {len(new_ids)} not checked yet")
+
+            message_ids = sorted(new_ids, reverse=True)
+            if limit is not None and limit > 0:
+                message_ids = message_ids[:limit]
+
+            messages = []
+            for message_id in message_ids:
+                try:
+                    raw_message = self.client.fetch([message_id], ['BODY.PEEK[]'])
+                    message_data = raw_message[message_id][b'BODY[]']
+                    email_message = EmailMessage.from_bytes(str(message_id), message_data, self.logger, include_attachments)
+                    messages.append((str(message_id), email_message))
+                except Exception as e:
+                    self.logger.error(f"Error fetching message {message_id}: {e}")
+
+            return messages
+        except Exception as e:
+            self.logger.error(f"Error getting messages: {e}")
+            return []
+
     def mark_as_read(self, message_id: str) -> bool:
         """
         Override to use custom logger's important method.
@@ -523,9 +571,18 @@ class ImapClient(BaseImapClient):
             self.logger.debug("Message did not match any filters")
             return False  # Message didn't match any filter
         
+        def process_and_record(email_message: EmailMessage) -> bool:
+            """
+            Run the filters, then record the UID as checked. Not recorded if processing raises,
+            so the message is retried next cycle.
+            """
+            result = process_email(email_message)
+            self.checked_store.add(self.account.name, self._folder, self._uidvalidity, int(email_message.message_id))
+            return result
+
         # Use the base class method with our custom callback
         self.process_messages_with_callback(
-            callback=process_email,
+            callback=process_and_record,
             search_criteria=['UNSEEN'],
             mark_as_read=True,
             move_to_folder=self.account.imap_move_folder
