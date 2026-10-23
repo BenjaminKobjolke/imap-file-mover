@@ -105,8 +105,8 @@ class EmailFilter:
                 logger.debug(f"Sender mismatch - Filter: '{self.sender}' not in '{email_from}'")
             return False
             
-        # Check subject match if filter has a subject criteria (ignore if not set)
-        if self.subject and self.subject not in email_subject:
+        # Check subject match if filter has a subject criteria (ignore if not set), case-insensitive
+        if self.subject and self.subject.lower() not in (email_subject or "").lower():
             if logger:
                 logger.debug(f"Subject mismatch - Filter: '{self.subject}' not in '{email_subject}'")
             return False
